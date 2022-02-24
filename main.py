@@ -8,6 +8,8 @@ class Player(pygame.sprite.Sprite):
         super().__init__()
         player_walk_1 = pygame.image.load("graphics/Player/player_walk_1.png").convert_alpha()
         player_walk_2 = pygame.image.load("graphics/Player/player_walk_2.png").convert_alpha()
+        self.jump_sound = pygame.mixer.Sound("audio/jump.mp3")
+        self.jump_sound.set_volume(0.2)
         self.walk = [player_walk_1, player_walk_2]
         self.index = 0
         self.jump = pygame.image.load("graphics/Player/jump.png").convert_alpha()
@@ -15,6 +17,7 @@ class Player(pygame.sprite.Sprite):
         self.rect = self.image.get_rect(midbottom=(80, 300))
         self.gravity = 0
         self.keyboard_pressed = False
+        self.game_active = True
 
     def player_input(self):
         keys = pygame.key.get_pressed()
@@ -24,6 +27,7 @@ class Player(pygame.sprite.Sprite):
             self.keyboard_pressed = True
             if self.rect.bottom >= 300:
                 self.gravity = -20
+                self.jump_sound.play()
         elif not keys[pygame.K_SPACE]:
             self.keyboard_pressed = False
 
@@ -31,6 +35,7 @@ class Player(pygame.sprite.Sprite):
             if self.rect.collidepoint(pos):
                 if self.rect.bottom >= 300:
                     self.gravity = -20
+                    self.jump_sound.play()
 
     def apply_gravity(self):
         self.gravity += 1
@@ -47,10 +52,15 @@ class Player(pygame.sprite.Sprite):
                 self.index = 0
             self.image = self.walk[int(self.index)]
 
-    def update(self):
+    def animation_reset(self, game_active):
+        if not game_active:
+            self.rect.bottom = 300
+
+    def update(self, game_active):
         self.player_input()
         self.apply_gravity()
         self.animation_state()
+        self.animation_reset(game_active)
 
 
 class Obstacle(pygame.sprite.Sprite):
@@ -118,7 +128,9 @@ clock = pygame.time.Clock()
 test_font = pygame.font.Font("font/Pixeltype.ttf", 50)
 sky_surface = pygame.image.load("graphics/Sky.png").convert()
 ground_surface = pygame.image.load("graphics/ground.png").convert()
-
+bg_music = pygame.mixer.Sound("audio/music.wav")
+bg_music.set_volume(0.1)
+bg_music.play(loops=-1)
 # obstacle Group
 obstacle = pygame.sprite.Group()
 
@@ -162,12 +174,13 @@ while True:
                 start_time = pygame.time.get_ticks()
 
     if game_active:
+        bg_music.set_volume(0.1)
         screen.blit(sky_surface, (0, 0))
         screen.blit(ground_surface, (0, 300))
         game_score = display_score()
 
         player.draw(screen)
-        player.update()
+        player.update(game_active)
 
         obstacle.draw(screen)
         obstacle.update()
@@ -176,7 +189,8 @@ while True:
         game_active = collision()
 
     else:
-        player.draw(screen)
+        bg_music.set_volume(0)
+        player.update(game_active)
         screen.fill((94, 129, 162))
         screen.blit(player_stand, player_stand_rect)
         score_message = test_font.render(f'Your Score: {game_score}', False, (64, 64, 64))
